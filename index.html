@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmartCart Customer Clustering</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #efefec;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9a9a96;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #262624;
+      --bg3: #2f2f2c;
+      --text: #f0f0ec;
+      --text2: #9a9a96;
+      --text3: #6b6b67;
+      --border: rgba(255,255,255,0.12);
+      --border2: rgba(255,255,255,0.22);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .page { max-width: 780px; margin: 0 auto; }
+
+  .card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+
+  .sc-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 0.5px solid var(--border); }
+  .sc-logo { width: 40px; height: 40px; background: #1D9E75; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sc-logo i { color: white; font-size: 20px; }
+  .sc-title { font-size: 18px; font-weight: 500; color: var(--text); }
+  .sc-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--border); color: var(--text2); background: var(--bg2); }
+
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  @media (max-width: 560px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metric { background: var(--bg2); border-radius: var(--radius-md); padding: 14px 16px; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric-val { font-size: 22px; font-weight: 500; color: var(--text); }
+  .metric-unit { font-size: 12px; color: var(--text3); }
+
+  .pipeline { display: flex; align-items: stretch; margin-bottom: 24px; }
+  .p-step { flex: 1; background: var(--bg2); border: 0.5px solid var(--border); padding: 10px 8px; }
+  .p-step:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .p-step:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+  .p-step + .p-step { border-left: none; }
+  .p-num { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+  .p-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .p-detail { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  @media (max-width: 560px) {
+    .pipeline { flex-direction: column; }
+    .p-step { border-radius: 0 !important; border-left: 0.5px solid var(--border) !important; border-top: none; }
+    .p-step:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0 !important; border-top: 0.5px solid var(--border) !important; }
+    .p-step:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md) !important; }
+  }
+
+  .clusters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  @media (max-width: 480px) { .clusters { grid-template-columns: 1fr; } }
+  .cluster-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .cluster-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .cluster-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .cluster-tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 10px; }
+  .cluster-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); padding: 4px 0; border-bottom: 0.5px solid var(--border); }
+  .cluster-row:last-child { border-bottom: none; }
+  .cluster-row span:last-child { font-weight: 500; color: var(--text); }
+
+  .chart-area { background: var(--bg2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 24px; }
+  .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+  .files { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+  @media (max-width: 480px) { .files { grid-template-columns: 1fr; } }
+  .file-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  .file-card i { font-size: 18px; color: var(--text2); }
+  .file-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .file-desc { font-size: 11px; color: var(--text3); }
+
+  .gh-link { display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 9px 18px; border-radius: var(--radius-md); text-decoration: none; transition: opacity 0.15s; }
+  .gh-link:hover { opacity: 0.82; }
+  .gh-link i { font-size: 16px; }
+
+  footer { text-align: center; font-size: 12px; color: var(--text3); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="card">
+    <div class="sc-header">
+      <div class="sc-logo"><i class="ti ti-shopping-cart"></i></div>
+      <div>
+        <div class="sc-title">SmartCart Customer Clustering</div>
+        <div class="sc-sub">Customer segmentation · KMeans + Agglomerative · PCA 3D</div>
+      </div>
+    </div>
+
+    <div class="badges">
+      <span class="badge">Python 3.9+</span>
+      <span class="badge">scikit-learn</span>
+      <span class="badge">pandas</span>
+      <span class="badge">seaborn</span>
+      <span class="badge">kneed</span>
+      <span class="badge">4 clusters</span>
+      <span class="badge">Agglomerative · Ward</span>
+    </div>
+
+    <p class="section-label">Key metrics</p>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Customers</div><div class="metric-val">2,240 <span class="metric-unit">rows</span></div></div>
+      <div class="metric"><div class="metric-label">Features</div><div class="metric-val">29 <span class="metric-unit">cols</span></div></div>
+      <div class="metric"><div class="metric-label">PCA components</div><div class="metric-val">3 <span class="metric-unit">dims</span></div></div>
+      <div class="metric"><div class="metric-label">Optimal K</div><div class="metric-val">4 <span class="metric-unit">clusters</span></div></div>
+    </div>
+
+    <p class="section-label">ML pipeline</p>
+    <div class="pipeline">
+      <div class="p-step"><div class="p-num">01</div><div class="p-name">Preprocess</div><div class="p-detail">Median impute, outlier drop</div></div>
+      <div class="p-step"><div class="p-num">02</div><div class="p-name">Engineer</div><div class="p-detail">Age, tenure, spending, family</div></div>
+      <div class="p-step"><div class="p-num">03</div><div class="p-name">Encode & Scale</div><div class="p-detail">OHE + StandardScaler</div></div>
+      <div class="p-step"><div class="p-num">04</div><div class="p-name">PCA</div><div class="p-detail">3D projection</div></div>
+      <div class="p-step"><div class="p-num">05</div><div class="p-name">Cluster</div><div class="p-detail">KMeans + Agglomerative</div></div>
+    </div>
+
+    <p class="section-label">Cluster profiles</p>
+    <div class="clusters">
+      <div class="cluster-card">
+        <div class="cluster-name"><span class="cluster-dot" style="background:#E24B4A;"></span>Cluster 0 — Budget shoppers</div>
+        <span class="cluster-tag" style="background:#FCEBEB;color:#A32D2D;">Low income · Low spend</span>
+        <div class="cluster-row"><span>Avg income</span><span>~$30K</span></div>
+        <div class="cluster-row"><span>Total spending</span><span>Low</span></div>
+        <div class="cluster-row"><span>Action</span><span>Value deals</span></div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-name"><span class="cluster-dot" style="background:#1D9E75;"></span>Cluster 1 — Premium buyers</div>
+        <span class="cluster-tag" style="background:#E1F5EE;color:#0F6E56;">High income · High spend</span>
+        <div class="cluster-row"><span>Avg income</span><span>~$75K+</span></div>
+        <div class="cluster-row"><span>Total spending</span><span>High</span></div>
+        <div class="cluster-row"><span>Action</span><span>Premium upsell</span></div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-name"><span class="cluster-dot" style="background:#378ADD;"></span>Cluster 2 — Catalog buyers</div>
+        <span class="cluster-tag" style="background:#E6F1FB;color:#185FA5;">Mid income · Catalog-heavy</span>
+        <div class="cluster-row"><span>Avg income</span><span>~$50K</span></div>
+        <div class="cluster-row"><span>Channel</span><span>Catalog</span></div>
+        <div class="cluster-row"><span>Action</span><span>Catalog campaigns</span></div>
+      </div>
+      <div class="cluster-card">
+        <div class="cluster-name"><span class="cluster-dot" style="background:#BA7517;"></span>Cluster 3 — Disengaged</div>
+        <span class="cluster-tag" style="background:#FAEEDA;color:#854F0B;">High recency · Low activity</span>
+        <div class="cluster-row"><span>Recency</span><span>High</span></div>
+        <div class="cluster-row"><span>Purchases</span><span>Low</span></div>
+        <div class="cluster-row"><span>Action</span><span>Win-back offers</span></div>
+      </div>
+    </div>
+
+    <p class="section-label">Income vs total spending by cluster</p>
+    <div class="chart-area">
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#E24B4A;"></span>Cluster 0</span>
+        <span><span class="legend-dot" style="background:#1D9E75;"></span>Cluster 1</span>
+        <span><span class="legend-dot" style="background:#378ADD;"></span>Cluster 2</span>
+        <span><span class="legend-dot" style="background:#BA7517;"></span>Cluster 3</span>
+      </div>
+      <div style="position:relative;width:100%;height:240px;">
+        <canvas id="scatterChart" role="img" aria-label="Scatter chart of income vs total spending across 4 customer clusters">Income vs spending by cluster.</canvas>
+      </div>
+    </div>
+
+    <p class="section-label">Repo files</p>
+    <div class="files">
+      <div class="file-card"><i class="ti ti-markdown"></i><div><div class="file-name">README.md</div><div class="file-desc">Project overview & setup</div></div></div>
+      <div class="file-card"><i class="ti ti-file-text"></i><div><div class="file-name">requirements.txt</div><div class="file-desc">Python dependencies</div></div></div>
+      <div class="file-card"><i class="ti ti-notebook"></i><div><div class="file-name">clustering_system.ipynb</div><div class="file-desc">Main notebook</div></div></div>
+    </div>
+
+    <a class="gh-link" href="https://github.com/your-username/smart-cart-customer-clustering" target="_blank">
+      <i class="ti ti-brand-github"></i> View on GitHub
+    </a>
+  </div>
+
+  <footer>SmartCart Customer Clustering · Built with scikit-learn & Python</footer>
+</div>
+
+<script>
+const pts = [
+  {x:28000,y:80,c:'#E24B4A'},{x:32000,y:110,c:'#E24B4A'},{x:25000,y:60,c:'#E24B4A'},
+  {x:22000,y:90,c:'#E24B4A'},{x:35000,y:130,c:'#E24B4A'},{x:27000,y:70,c:'#E24B4A'},
+  {x:76000,y:1100,c:'#1D9E75'},{x:82000,y:1350,c:'#1D9E75'},{x:91000,y:1500,c:'#1D9E75'},
+  {x:68000,y:980,c:'#1D9E75'},{x:88000,y:1280,c:'#1D9E75'},{x:74000,y:1050,c:'#1D9E75'},
+  {x:52000,y:450,c:'#378ADD'},{x:48000,y:520,c:'#378ADD'},{x:55000,y:390,c:'#378ADD'},
+  {x:61000,y:600,c:'#378ADD'},{x:46000,y:470,c:'#378ADD'},{x:59000,y:560,c:'#378ADD'},
+  {x:41000,y:150,c:'#BA7517'},{x:38000,y:200,c:'#BA7517'},{x:44000,y:180,c:'#BA7517'},
+  {x:36000,y:120,c:'#BA7517'},{x:50000,y:230,c:'#BA7517'},{x:43000,y:160,c:'#BA7517'},
+];
+new Chart(document.getElementById('scatterChart'),{
+  type:'scatter',
+  data:{datasets:[{data:pts.map(d=>({x:d.x,y:d.y})),backgroundColor:pts.map(d=>d.c+'CC'),pointRadius:7,pointHoverRadius:9}]},
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Income: $${ctx.parsed.x.toLocaleString()} · Spending: $${ctx.parsed.y}`}}},
+    scales:{
+      x:{title:{display:true,text:'Income ($)',font:{size:11}},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'K',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}},
+      y:{title:{display:true,text:'Total spending ($)',font:{size:11}},ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}
+    }
+  }
+});
+</script>
+</body>
+</html>
